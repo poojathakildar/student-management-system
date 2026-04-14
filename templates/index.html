@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Management System | Admin Portal</title>
+    <style>
+        :root {
+            --sidebar-bg: #1e293b;
+            --main-bg: #f1f5f9;
+            --primary: #2563eb;
+            --accent: #3b82f6;
+            --white: #ffffff;
+            --text-dark: #0f172a;
+            --text-light: #64748b;
+            --danger: #ef4444;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background-color: var(--main-bg); 
+            margin: 0; 
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h1 { font-size: 1.2rem; margin-bottom: 40px; color: var(--accent); }
+        .nav-item { padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: var(--accent); }
+
+        /* Main Content */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header h2 { margin: 0; color: var(--text-dark); }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--white); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .stat-card span { color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; }
+        .stat-card h3 { margin: 5px 0 0 0; font-size: 1.5rem; }
+
+        /* Form Card */
+        .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end; }
+
+        input {
+            width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; outline: none;
+        }
+
+        button.btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+        button.btn-primary:hover { background: var(--accent); }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 12px; overflow: hidden; }
+        th { background: #f8fafc; text-align: left; padding: 15px; color: var(--text-light); font-size: 0.8rem; }
+        td { padding: 15px; border-top: 1px solid #f1f5f9; color: var(--text-dark); }
+
+        .action-btns button { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 0.75rem; }
+        .edit-btn { background: #dbeafe; color: #1e40af; }
+        .del-btn { background: #fee2e2; color: #991b1b; }
+
+        .search-bar { width: 300px; margin-bottom: 20px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h1>🚀 DevOps Portal</h1>
+        <div class="nav-item active">📊 Dashboard</div>
+        <div class="nav-item">👥 Students</div>
+        <div class="nav-item">📈 Analytics</div>
+        <div class="nav-item">⚙️ Settings</div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>Student Management System</h2>
+            <div id="status" style="font-size: 0.8rem; color: #10b981;">● System Online</div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <span>Total Enrolled</span>
+                <h3 id="stat-count">0</h3>
+            </div>
+            <div class="stat-card">
+                <span>Database Status</span>
+                <h3>SQLite 3</h3>
+            </div>
+        </div>
+
+        <div class="card">
+            <h4 style="margin-top:0">Add New Student</h4>
+            <div class="form-grid">
+                <div><label>Name</label><input id="name" placeholder="Enter Name"></div>
+                <div><label>Roll Number</label><input id="roll" placeholder="Enter Roll"></div>
+                <div><label>Course</label><input id="course" placeholder="Enter Course"></div>
+                <button class="btn-primary" onclick="addStudent()">Add Record</button>
+            </div>
+        </div>
+
+        <input id="search" class="search-bar" placeholder="🔍 Search records..." onkeyup="searchStudent()">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>NAME</th>
+                    <th>ROLL NUMBER</th>
+                    <th>COURSE</th>
+                    <th>ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody id="list"></tbody>
+        </table>
+    </div>
+
+<script>
+    let allStudents = [];
+
+    function loadStudents() {
+        fetch('/students').then(res => res.json()).then(data => {
+            allStudents = data;
+            display(data);
+        });
+    }
+
+    function display(data) {
+        const list = document.getElementById('list');
+        list.innerHTML = "";
+        document.getElementById('stat-count').innerText = data.length;
+
+        data.forEach(s => {
+            list.innerHTML += `
+            <tr>
+                <td>#${s[0]}</td>
+                <td style="font-weight:600">${s[1]}</td>
+                <td>${s[2]}</td>
+                <td>${s[3]}</td>
+                <td class="action-btns">
+                    <button class="edit-btn" onclick="editStudent(${s[0]})">Edit</button>
+                    <button class="del-btn" onclick="deleteStudent(${s[0]})">Delete</button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    function addStudent() {
+        const n = document.getElementById('name').value;
+        const r = document.getElementById('roll').value;
+        const c = document.getElementById('course').value;
+        if (!n || !r || !c) return alert("Fields cannot be empty");
+
+        fetch('/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: n, roll: r, course: c })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('name').value = '';
+            document.getElementById('roll').value = '';
+            document.getElementById('course').value = '';
+            loadStudents();
+        });
+    }
+
+    function deleteStudent(id) {
+        if(confirm("Confirm deletion of record?")) {
+            fetch(`/delete/${id}`, { method: 'DELETE' }).then(() => loadStudents());
+        }
+    }
+
+    function editStudent(id) {
+        const s = allStudents.find(x => x[0] === id);
+        const n = prompt("Edit Name:", s[1]);
+        const r = prompt("Edit Roll:", s[2]);
+        const c = prompt("Edit Course:", s[3]);
+        if (n && r && c) {
+            fetch(`/update/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: n, roll: r, course: c })
+            }).then(() => loadStudents());
+        }
+    }
+
+    function searchStudent() {
+        const term = document.getElementById('search').value.toLowerCase();
+        const filtered = allStudents.filter(s => s[1].toLowerCase().includes(term));
+        display(filtered);
+    }
+
+    loadStudents();
+</script>
+</body>
+</html>
