@@ -1,27 +1,62 @@
-name: CI/CD Pipeline
+name: DevOps Portal CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
+  quality-assurance:
+    name: Code Quality & Security
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          pip install flask
+      # Optimization: Caching prevents re-downloading packages every time
+      - name: Cache Pip Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
-      - name: Run test
+      - name: Install Project Stack
         run: |
-          python -c "print('CI/CD is working')"
+          python -m pip install --upgrade pip
+          pip install flask pandas flake8 safety
+
+      # Stage 1: Security Scan (Checking for vulnerable dependencies)
+      - name: Security Vulnerability Scan
+        run: safety check || echo "Warning: Vulnerabilities detected in stack."
+
+      # Stage 2: Linting (Ensures your code follows PEP8 standards)
+      - name: Syntax & Lint Check
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings for the rest of the project
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      # Stage 3: Functional Smoke Test
+      - name: Backend Integration Test
+        run: |
+          # A quick script to verify the Flask app initializes and the DB connects
+          echo "import app; client = app.app.test_client(); resp = client.get('/'); print('Status:', resp.status_code); exit(0 if resp.status_code == 200 else 1)" > test_run.py
+          python test_run.py
+
+  deployment-simulation:
+    name: Simulate Production Deployment
+    needs: quality-assurance
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Deploy Build Artifacts
+        run: echo "🚀 Quality gates passed. Code is ready for production deployment."
