@@ -26,29 +26,34 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
-      - name: Install Project Stack
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flask pandas flake8 safety
 
-      - name: Security Vulnerability Scan
-        run: safety check || echo "Warning: vulnerabilities found"
+      - name: Security Scan
+        run: safety check || echo "⚠ Vulnerabilities detected"
 
-      - name: Syntax & Lint Check
+      - name: Lint Code
         run: |
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Backend Integration Test
+      - name: Backend Test
         run: |
-          python -c "import app; client = app.app.test_client(); r = client.get('/'); print(r.status_code); exit(0 if r.status_code == 200 else 1)"
+          echo "import app" > test.py
+          echo "client = app.app.test_client()" >> test.py
+          echo "response = client.get('/')" >> test.py
+          echo "print('Status:', response.status_code)" >> test.py
+          echo "exit(0 if response.status_code == 200 else 1)" >> test.py
+          python test.py
 
   deployment-simulation:
-    name: Simulate Production Deployment
+    name: Deployment Simulation
     needs: quality-assurance
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Deploy Build
-        run: echo '🚀 Build passed. Ready for deployment.'
+      - name: Deploy Status
+        run: echo "🚀 Build passed successfully. Ready for deployment."
